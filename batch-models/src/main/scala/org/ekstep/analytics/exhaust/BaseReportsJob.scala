@@ -51,11 +51,14 @@ trait BaseReportsJob {
           spark.sparkContext.hadoopConfiguration.set("fs.s3n.endpoint", storageEndpoint)
         }
       case "oci" =>
-        spark.sparkContext.hadoopConfiguration.set("fs.s3n.awsAccessKeyId", AppConf.getConfig(storageKey));
-        spark.sparkContext.hadoopConfiguration.set("fs.s3n.awsSecretAccessKey", AppConf.getConfig(storageSecret));
+        spark.sparkContext.hadoopConfiguration.set("fs.s3a.access.key", storageKey);
+        spark.sparkContext.hadoopConfiguration.set("fs.s3a.secret.key", storageSecret);
         val storageEndpoint = AppConf.getConfig("cloud_storage_endpoint")
         if (!"".equalsIgnoreCase(storageEndpoint)) {
-          spark.sparkContext.hadoopConfiguration.set("fs.s3n.endpoint", storageEndpoint)
+            spark.sparkContext.hadoopConfiguration.set("fs.s3a.endpoint", storageEndpoint);
+            spark.sparkContext.hadoopConfiguration.set("fs.s3a.path.style.access", "true");
+            spark.sparkContext.hadoopConfiguration.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem");
+
         }
       case "azure" =>
         val storageKeyValue = AppConf.getConfig(storageKey);
