@@ -51,12 +51,8 @@ trait BaseReportsJob {
           spark.sparkContext.hadoopConfiguration.set("fs.s3n.endpoint", storageEndpoint)
         }
       case "oci" =>
-        spark.sparkContext.hadoopConfiguration.set("fs.s3n.awsAccessKeyId", AppConf.getConfig(storageKey));
-        spark.sparkContext.hadoopConfiguration.set("fs.s3n.awsSecretAccessKey", AppConf.getConfig(storageSecret));
-        val storageEndpoint = AppConf.getConfig("cloud_storage_endpoint")
-        if (!"".equalsIgnoreCase(storageEndpoint)) {
-          spark.sparkContext.hadoopConfiguration.set("fs.s3n.endpoint", storageEndpoint)
-        }
+        spark.sparkContext.hadoopConfiguration.set("fs.oci.client.custom.authenticator", "com.oracle.bmc.hdfs.auth.InstancePrincipalsCustomAuthenticator");
+        spark.sparkContext.hadoopConfiguration.set("fs.oci.client.hostname", AppConf.getConfig("oci_object_storage_endpoint"));
       case "azure" =>
         val storageKeyValue = AppConf.getConfig(storageKey);
         spark.sparkContext.hadoopConfiguration.set("fs.azure", "org.apache.hadoop.fs.azure.NativeAzureFileSystem")
