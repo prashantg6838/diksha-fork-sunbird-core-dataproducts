@@ -32,6 +32,10 @@ trait BaseDruidQueryProcessor {
       case "oci" =>
         sc.hadoopConfiguration.set("fs.s3n.awsAccessKeyId", AppConf.getConfig(accountKey.getOrElse("azure_storage_key")));
         sc.hadoopConfiguration.set("fs.s3n.awsSecretAccessKey", AppConf.getConfig(accountSecret.getOrElse("azure_storage_secret")));
+        val storageEndpoint = AppConf.getConfig("cloud_storage_endpoint")
+        if (!"".equalsIgnoreCase(storageEndpoint)) {
+          spark.sparkContext.hadoopConfiguration.set("fs.s3n.endpoint", storageEndpoint)
+        }      
       case "azure" =>
         sc.hadoopConfiguration.set("fs.azure", "org.apache.hadoop.fs.azure.NativeAzureFileSystem")
         sc.hadoopConfiguration.set("fs.azure.account.key." + AppConf.getConfig(accountKey.getOrElse("azure_storage_key")) + ".blob.core.windows.net", AppConf.getConfig(accountSecret.getOrElse("azure_storage_secret")))
