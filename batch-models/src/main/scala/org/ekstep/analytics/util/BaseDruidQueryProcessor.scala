@@ -34,7 +34,7 @@ trait BaseDruidQueryProcessor {
         sc.hadoopConfiguration.set("fs.s3n.awsSecretAccessKey", AppConf.getConfig(accountSecret.getOrElse("azure_storage_secret")));
         val storageEndpoint = AppConf.getConfig("cloud_storage_endpoint")
         if (!"".equalsIgnoreCase(storageEndpoint)) {
-          spark.sparkContext.hadoopConfiguration.set("fs.s3n.endpoint", storageEndpoint)
+          sc.hadoopConfiguration.set("fs.s3n.endpoint", storageEndpoint)
         }      
       case "azure" =>
         sc.hadoopConfiguration.set("fs.azure", "org.apache.hadoop.fs.azure.NativeAzureFileSystem")
