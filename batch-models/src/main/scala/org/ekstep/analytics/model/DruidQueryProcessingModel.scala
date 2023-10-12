@@ -84,7 +84,7 @@ object DruidQueryProcessingModel extends IBatchModelTemplate[DruidOutput, DruidO
             .filter(f => !metricFields.contains(f)) ++ metricsLabels).distinct
           val dimsLabels = labelsLookup.filter(x => f.dims.contains(x._1)).values.toList
           val filteredDf = df.select(fieldsList.head, fieldsList.tail: _*)
-          val renamedDf = filteredDf.select(filteredDf.columns.map(c => filteredDf.col(c).as(labelsLookup.getOrElse(c, c))): _*).na.fill("unknown")
+          val renamedDf = filteredDf.select(filteredDf.columns.map(c => filteredDf.col(c).as(labelsLookup.getOrElse(c, c))): _*)
           val reportFinalId = if (f.label.nonEmpty && f.label.get.nonEmpty) reportConfig.id + "/" + f.label.get else reportConfig.id
           val filesWithSize = saveReport(renamedDf, config ++ Map("dims" -> dimsLabels, "metricLabels" -> metricsLabels,
           "reportId" -> reportFinalId, "fileParameters" -> f.fileParameters, "format" -> f.`type`), f.zip, Option(columnOrder))
