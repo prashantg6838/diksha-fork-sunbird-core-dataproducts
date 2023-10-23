@@ -40,13 +40,13 @@ object DruidQueryUtil {
                     (f.get("id").get, f.get("name").get)
                 else
                     ("", "")
-            }).filter(f => !f._1.isEmpty)
+            })
             val districts = response.result.response.map(f => {
                 if (f.getOrElse("type", "").equalsIgnoreCase("district"))
                     (f.get("parentId").get, f.get("name").get)
                 else
                     ("", "")
-            }).filter(f => !f._1.isEmpty)
+            })
             val masterData = states.map(tup1 => districts.filter(tup2 => tup2._1 == tup1._1)
               .map(tup2 => (if (stateLookup.contains(tup1._2)) stateLookup(tup1._2) else tup1._2, tup2._2))).flatten.distinct
             sc.parallelize(masterData).toDF("state", "district")
