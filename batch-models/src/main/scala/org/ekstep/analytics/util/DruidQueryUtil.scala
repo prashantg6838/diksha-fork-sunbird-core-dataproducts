@@ -18,7 +18,7 @@ case class StateLookup(lookupExtractorFactory: LookUpMap)
 object DruidQueryUtil {
     def removeInvalidLocations(mainDf: DataFrame, filterDf: DataFrame, columns: List[String])(implicit sc: SparkContext): DataFrame = {
         if (filterDf.count() > 0) {
-            mainDf.join(filterDf, columns, "inner")
+            mainDf.join(filterDf, columns, "left_outer")
         }
         else {
             mainDf
