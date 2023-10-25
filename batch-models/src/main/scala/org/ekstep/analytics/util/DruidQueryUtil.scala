@@ -36,7 +36,7 @@ def removeInvalidLocations(mainDf: DataFrame, filterDf: DataFrame, columns: List
         mainDf
     }
     outputdf.show(10)
-    outputdf
+    mainDf
 } 
 
     def getValidLocations(restUtil: HTTPClient)(implicit sc: SparkContext): DataFrame = {
