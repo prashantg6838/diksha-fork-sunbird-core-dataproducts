@@ -99,9 +99,10 @@ object UpdateContentRating extends IBatchModelTemplate[Empty, Empty, ContentMetr
   }
 
   def getContentMetrics(restUtil: HTTPClient, query: String)(implicit sc: SparkContext): RDD[ContentMetrics] = {
-    val apiURL = if(AppConf.getConfig("druid.content.consumption.query").equals(query)) {
+    val apiURL: String = if(AppConf.getConfig("druid.content.consumption.query").equals(query)) {
       println(s"druid.content.consumption.query = $query")
-      AppConf.getConfig("druid.sql.host.rollup")
+//      println("rollup host: "+AppConf.getConfig("druid.sql.rollup"))
+      "http://10.90.16.143:8082/druid/v2/sql/"
     }else {
       println(s"druid.sql.host = $query")
       AppConf.getConfig("druid.sql.host")
