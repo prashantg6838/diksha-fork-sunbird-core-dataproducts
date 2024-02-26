@@ -88,7 +88,7 @@ object UpdateContentRating extends IBatchModelTemplate[Empty, Empty, ContentMetr
 
   def getRatedContents(config: Map[String, AnyRef], restUtil: HTTPClient): List[String] = {
     val apiURL = AppConf.getConfig("druid.sql.host")
-    val startDate = config.getOrElse("startDate", new DateTime().minusDays(1).toString("yyyy-MM-dd")).asInstanceOf[String]
+    val startDate = "2023-04-01" //config.getOrElse("startDate", new DateTime().minusDays(1).toString("yyyy-MM-dd")).asInstanceOf[String]
     var endDate = config.getOrElse("endDate", new DateTime().toString("yyyy-MM-dd")).asInstanceOf[String]
     if (startDate.equals(endDate)) endDate = new DateTime(endDate).plusDays(1).toString("yyyy-MM-dd")
     val contentRequest = AppConf.getConfig("druid.unique.content.query").format(new DateTime(startDate).withTimeAtStartOfDay().toString("yyyy-MM-dd HH:mm:ss"), new DateTime(endDate).withTimeAtStartOfDay().toString("yyyy-MM-dd HH:mm:ss"))
@@ -100,18 +100,12 @@ object UpdateContentRating extends IBatchModelTemplate[Empty, Empty, ContentMetr
 
   def getContentMetrics(restUtil: HTTPClient, query: String)(implicit sc: SparkContext): RDD[ContentMetrics] = {
     val apiURL: String = if(AppConf.getConfig("druid.content.consumption.query").equals(query)) {
-      println(s"druid.content.consumption.query = $query")
-//      println("rollup host: "+AppConf.getConfig("druid.sql.rollup"))
       "http://10.90.16.143:8082/druid/v2/sql/"
     }else {
-      println(s"druid.sql.host = $query")
       AppConf.getConfig("druid.sql.host")
     }
 
-    println(s"apiURL == $apiURL and query = $query")
-
     val metricsData = restUtil.post[List[Map[String, AnyRef]]](apiURL, query)
-    println(s"metricsData = $metricsData")
     if (null != metricsData)
       sc.parallelize(compute(metricsData))
     else
@@ -148,7 +142,6 @@ object UpdateContentRating extends IBatchModelTemplate[Empty, Empty, ContentMetr
   }
 
   def publishMetricsToContentModel(contentMetrics: ContentMetrics, baseURL: String, restUtil: HTTPClient): Response = {
-    println(s"contentMetrics data = $contentMetrics")
     val systemUpdateURL = baseURL + "/" + contentMetrics.contentId
     val meTotalTimeSpent = Map("app" -> contentMetrics.totalTimeSpentInApp.getOrElse(null), "portal" -> contentMetrics.totalTimeSpentInPortal.getOrElse(null), "desktop" -> contentMetrics.totalTimeSpentInDeskTop.getOrElse(null)).filter(_._2 != null)
     val meTotalPlaySessionCount = Map("app" -> contentMetrics.totalPlaySessionCountInApp.getOrElse(null), "portal" -> contentMetrics.totalPlaySessionCountInPortal.getOrElse(null), "desktop" -> contentMetrics.totalPlaySessionCountInDeskTop.getOrElse(null)).filter(_._2 != null)
