@@ -111,6 +111,7 @@ object UpdateContentRating extends IBatchModelTemplate[Empty, Empty, ContentMetr
     println(s"apiURL == $apiURL and query = $query")
 
     val metricsData = restUtil.post[List[Map[String, AnyRef]]](apiURL, query)
+    println(s"metricsData = $metricsData")
     if (null != metricsData)
       sc.parallelize(compute(metricsData))
     else
@@ -147,6 +148,7 @@ object UpdateContentRating extends IBatchModelTemplate[Empty, Empty, ContentMetr
   }
 
   def publishMetricsToContentModel(contentMetrics: ContentMetrics, baseURL: String, restUtil: HTTPClient): Response = {
+    println(s"contentMetrics data = $contentMetrics")
     val systemUpdateURL = baseURL + "/" + contentMetrics.contentId
     val meTotalTimeSpent = Map("app" -> contentMetrics.totalTimeSpentInApp.getOrElse(null), "portal" -> contentMetrics.totalTimeSpentInPortal.getOrElse(null), "desktop" -> contentMetrics.totalTimeSpentInDeskTop.getOrElse(null)).filter(_._2 != null)
     val meTotalPlaySessionCount = Map("app" -> contentMetrics.totalPlaySessionCountInApp.getOrElse(null), "portal" -> contentMetrics.totalPlaySessionCountInPortal.getOrElse(null), "desktop" -> contentMetrics.totalPlaySessionCountInDeskTop.getOrElse(null)).filter(_._2 != null)
