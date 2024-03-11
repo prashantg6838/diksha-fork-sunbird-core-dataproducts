@@ -91,9 +91,7 @@ object UpdateContentRating extends IBatchModelTemplate[Empty, Empty, ContentMetr
     val startDate = config.getOrElse("startDate", new DateTime().minusDays(1).toString("yyyy-MM-dd")).asInstanceOf[String]
     var endDate = config.getOrElse("endDate", new DateTime().toString("yyyy-MM-dd")).asInstanceOf[String]
     if (startDate.equals(endDate)) endDate = new DateTime(endDate).plusDays(1).toString("yyyy-MM-dd")
-   // val contentRequest = AppConf.getConfig("druid.unique.content.query").format(new DateTime(startDate).withTimeAtStartOfDay().toString("yyyy-MM-dd HH:mm:ss"), new DateTime(endDate).withTimeAtStartOfDay().toString("yyyy-MM-dd HH:mm:ss"))
-   val contentRequest = AppConf.getConfig("druid.unique.content.query")
-    println(s"contentRequest: $contentRequest")
+    val contentRequest = AppConf.getConfig("druid.unique.content.query").format(new DateTime(startDate).withTimeAtStartOfDay().toString("yyyy-MM-dd HH:mm:ss"), new DateTime(endDate).withTimeAtStartOfDay().toString("yyyy-MM-dd HH:mm:ss"))
     val contentResponse = restUtil.post[List[Map[String, AnyRef]]](apiURL, contentRequest)
     if (contentResponse != null)
       contentResponse.map(x => x.getOrElse("Id", "").toString)
