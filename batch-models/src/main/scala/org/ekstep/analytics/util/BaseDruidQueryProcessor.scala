@@ -47,15 +47,17 @@ trait BaseDruidQueryProcessor {
 
   // Fetches data from druid and return back RDD
   def fetchDruidData(reportConfig: ReportConfig, streamQuery: Boolean = false, exhaustQuery: Boolean = false, foldByKey: Boolean = true)(implicit sc: SparkContext, fc: FrameworkContext): RDD[DruidOutput] = {
-
+    println(s"--------- started fetchDruidData ----------------")
     val queryDims = reportConfig.metrics.map { f =>
       f.druidQuery.dimensions.getOrElse(List()).map(f => f.aliasName.getOrElse(f.fieldName))
     }.distinct
-
+    print(s"queryDims = $queryDims")
     if (queryDims.length > 1) throw new DruidConfigException("Query dimensions are not matching")
 
     val interval = reportConfig.dateRange
+    println(s"interval = $interval")
     val granularity = interval.granularity
+    println(s"granularity = $granularity")
     var reportInterval = if (interval.staticInterval.nonEmpty) {
       interval.staticInterval.get
     } else if (interval.interval.nonEmpty) {
@@ -63,8 +65,11 @@ trait BaseDruidQueryProcessor {
     } else {
       throw new DruidConfigException("Both staticInterval and interval cannot be missing. Either of them should be specified")
     }
+    println(s"reportInterval = $reportInterval")
+    println(s"exhaustQuery = $exhaustQuery")
     if(exhaustQuery) {
       val config = reportConfig.metrics.head.druidQuery
+      println(s"config = $config")
       val queryConfig = JSONUtils.deserialize[Map[String, AnyRef]](JSONUtils.serialize(config)) ++
         Map("intervalSlider" -> interval.intervalSlider, "intervals" ->
           (if (interval.staticInterval.isEmpty && interval.interval.nonEmpty) getDateRange(interval.interval.get,
@@ -72,6 +77,7 @@ trait BaseDruidQueryProcessor {
       DruidDataFetcher.executeSQLQuery(JSONUtils.deserialize[DruidQueryModel](JSONUtils.serialize(queryConfig)), fc.getAkkaHttpUtil())
     }
     else {
+      println(s"----------inside else condition of fetchDruidData function-----------")
       val metrics = reportConfig.metrics.map { f =>
 
         val queryInterval = if (interval.staticInterval.isEmpty && interval.interval.nonEmpty) {
@@ -79,17 +85,24 @@ trait BaseDruidQueryProcessor {
           getDateRange(dateRange, interval.intervalSlider, f.druidQuery.dataSource)
         } else
           reportInterval
-
+        println(s"queryInterval : $queryInterval")
         val queryConfig = if (granularity.nonEmpty)
           JSONUtils.deserialize[Map[String, AnyRef]](JSONUtils.serialize(f.druidQuery)) ++ Map("intervalSlider" -> interval.intervalSlider, "intervals" -> queryInterval, "granularity" -> granularity.get)
         else
           JSONUtils.deserialize[Map[String, AnyRef]](JSONUtils.serialize(f.druidQuery)) ++ Map("intervalSlider" -> interval.intervalSlider, "intervals" -> queryInterval)
+        println(s"queryConfig = $queryConfig")
         val data = if (streamQuery) {
+          println(s"-----inside if condition streamQuery process function-------")
           DruidDataFetcher.getDruidData(JSONUtils.deserialize[DruidQueryModel](JSONUtils.serialize(queryConfig)), true)
         }
         else {
+          println(s"-----inside else condition streamQuery process function-------")
           DruidDataFetcher.getDruidData(JSONUtils.deserialize[DruidQueryModel](JSONUtils.serialize(queryConfig)))
         }
+        println("Sample data from the RDD:")
+        data.take(5).foreach(println)
+        val count = data.count()
+        println(s"Number of records in the RDD: $count")
         data.map { x =>
           val dataMap = JSONUtils.deserialize[Map[String, AnyRef]](x)
           val key = dataMap.filter(m => (queryDims.flatten ++ List("date")).contains(m._1)).values.map(f => f.toString).toList.sorted(Ordering.String.reverse).mkString(",")
@@ -99,6 +112,7 @@ trait BaseDruidQueryProcessor {
 
       }
       val finalResult = if (foldByKey) metrics.fold(sc.emptyRDD)(_ union _).foldByKey(Map())(_ ++ _) else metrics.fold(sc.emptyRDD)(_ union _)
+      println(s"finalResult = $finalResult")
       finalResult.map { f =>
         DruidOutput(f._2)
       }
@@ -108,7 +122,9 @@ trait BaseDruidQueryProcessor {
   // Converts RDD data into Dataframe with optional location mapping feature
   def getReportDF(restUtil: HTTPClient, config: OutputConfig, data: RDD[DruidOutput] , dataCount: LongAccumulator)(implicit sc:SparkContext, sqlContext: SQLContext): DataFrame =
   {
+    println("-------------- started processing getReportDF Model -------------")
     if (config.locationMapping.getOrElse(false)) {
+      println("-------inside getReoortDF if condition------")
       DruidQueryUtil.removeInvalidLocations(sqlContext.read.json(data.map(f => {
         dataCount.add(1)
         JSONUtils.serialize(f)
@@ -123,9 +139,13 @@ trait BaseDruidQueryProcessor {
 
   // get date range from query interval
   def getDateRange(interval: QueryInterval, intervalSlider: Integer = 0, dataSource: String): String = {
+    println(s"---------fetching getDateRange ------------")
     val offset :Long = if(dataSource.contains("rollup") || dataSource.contains("distinct")) 0 else DateTimeZone.forID("Asia/Kolkata").getOffset(DateTime.now())
+    println(s"offset = $offset")
     val startDate = DateTime.parse(interval.startDate).withTimeAtStartOfDay().minusDays(intervalSlider).plus(offset).toString("yyyy-MM-dd'T'HH:mm:ss")
+    println(s"startDate = $startDate")
     val endDate = DateTime.parse(interval.endDate).withTimeAtStartOfDay().minusDays(intervalSlider).plus(offset).toString("yyyy-MM-dd'T'HH:mm:ss")
+    print(s"endDate = $endDate")
     startDate + "/" + endDate
   }
 
@@ -137,17 +157,28 @@ trait BaseDruidQueryProcessor {
   // saves report data as csv/zip file to specified path and also has merge report logic
   def saveReport(data: DataFrame, config: Map[String, AnyRef], zip: Option[Boolean], columnOrder: Option[List[String]])(implicit sc: SparkContext, fc:FrameworkContext): List[(String, Long)] = {
     import org.apache.spark.sql.functions.udf
+    println(s"------------inside the saveReport function -------------")
     val container =  getStringProperty(config, "container", "test-container")
+    println(s"container : $container ")
     val storageConfig = StorageConfig(getStringProperty(config, "store", "local"),container, getStringProperty(config, "key", "/tmp/druid-reports"), config.get("accountKey").asInstanceOf[Option[String]]);
+    println(s"storageConfig : $storageConfig")
     val format = config.get("format").get.asInstanceOf[String]
+    println(s"format : $format")
     val filePath = config.getOrElse("filePath", AppConf.getConfig("spark_output_temp_dir")).asInstanceOf[String]
     val key = config.getOrElse("key", null).asInstanceOf[String]
+    println(s"key : $key")
     val reportId = config.get("reportId").get.asInstanceOf[String]
+    println(s"reportId : $reportId")
     val fileParameters = config.get("fileParameters").get.asInstanceOf[List[String]]
+    println(s"fileParameters : $fileParameters")
     val configMap = config.getOrElse("reportConfig", Map()).asInstanceOf[Map[String, AnyRef]]
+    println(s"configMap : $configMap")
     val reportMergeConfig = if(configMap.nonEmpty) JSONUtils.deserialize[ReportConfig](JSONUtils.serialize(configMap)).mergeConfig else None
+    println(s"reportMergeConfig : $reportMergeConfig")
     val dims = if (fileParameters.nonEmpty && fileParameters.contains("date")) config.get("dims").get.asInstanceOf[List[String]] ++ List("Date") else config.get("dims").get.asInstanceOf[List[String]]
+    println(s"dims : $dims")
     val quoteColumns =config.get("quoteColumns").getOrElse(List()).asInstanceOf[List[String]]
+    println(s"quoteColumns : $quoteColumns")
     val deltaFiles = if (dims.nonEmpty) {
       val duplicateDims = dims.map(f => f.concat("Duplicate"))
       var duplicateDimsDf = data
@@ -177,7 +208,9 @@ trait BaseDruidQueryProcessor {
     }
     if(reportMergeConfig.nonEmpty){
       val mergeConf = reportMergeConfig.get
+      println(s"mergeConf : $mergeConf")
       val reportPath = mergeConf.reportPath
+      println(s"reportPath : $reportPath")
       val filesList = deltaFiles.map{f =>
         if(dims.size == 1 && dims.contains("Date")) {
           val finalReportPath = if (key != null) key + reportPath else reportPath
@@ -187,10 +220,12 @@ trait BaseDruidQueryProcessor {
           Map("reportPath" -> (reportPrefix.substring(1) + "/" + reportPath), "deltaPath" -> f.substring(f.indexOf(storageConfig.fileName, 0)))
         }
       }
+      println(s"filesList : $filesList")
       val mergeScriptConfig = MergeConfig(mergeConf.`type`,reportId, mergeConf.frequency, mergeConf.basePath, mergeConf.rollup,
         mergeConf.rollupAge, mergeConf.rollupCol, None, mergeConf.rollupRange, MergeFiles(filesList, List("Date")), container, mergeConf.postContainer,
         mergeConf.deltaFileAccess, mergeConf.reportFileAccess,mergeConf.dateFieldRequired,columnOrder,
         Some(config.get("metricLabels").get.asInstanceOf[List[String]]))
+      println(s"mergeScriptConfig : $mergeScriptConfig")
       new MergeUtil().mergeFile(mergeScriptConfig)
     }
     else {
